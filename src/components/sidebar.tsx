@@ -119,15 +119,25 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
                 <span className="text-xs font-medium">Sell</span>
               </Link>
 
-              {/* Donate Button - Only show if not NGO */}
-              {user?.role !== "ngo" && (
-                <Link
+              {/* Donate Button*/}
+              <Link
                   href="/donate"
                   onClick={onClose}
                   className="group flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-full bg-slate-800/30 hover:bg-pink-500/10 border border-slate-700/50 hover:border-pink-500/30 text-slate-400 hover:text-pink-400 transition-all duration-300 transform hover:scale-105"
                 >
                   <Heart className="h-3.5 w-3.5" />
                   <span className="text-xs font-medium">Donate</span>
+                </Link>
+
+              {/* Buy Button - Only show if NGO*/}
+              {user?.role === "ngo" && (
+                <Link
+                  href="/donate"
+                  onClick={onClose}
+                  className="group flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-full bg-slate-800/30 hover:bg-pink-500/10 border border-slate-700/50 hover:border-pink-500/30 text-slate-400 hover:text-pink-400 transition-all duration-300 transform hover:scale-105"
+                >
+                  <Heart className="h-3.5 w-3.5" />
+                  <span className="text-xs font-medium">Raise a Request</span>
                 </Link>
               )}
             </div>
