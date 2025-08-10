@@ -28,9 +28,8 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
     <>
       {/* Sidebar */}
       <aside
-        className={`fixed top-0 left-0 h-full w-72 bg-slate-900/95 backdrop-blur-md text-white transition-all duration-500 ease-out z-40 border-r border-slate-700/50 shadow-2xl ${
-          open ? "translate-x-0" : "-translate-x-full"
-        }`}
+        className={`fixed top-0 left-0 h-full w-72 bg-slate-900/95 backdrop-blur-md text-white transition-all duration-500 ease-out z-40 border-r border-slate-700/50 shadow-2xl ${open ? "translate-x-0" : "-translate-x-full"
+          }`}
       >
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-slate-700/50">
@@ -59,20 +58,18 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
                 key={link.href}
                 href={link.href}
                 onClick={onClose}
-                className={`group relative flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-300 transform hover:scale-[1.02] ${
-                  isActive
+                className={`group relative flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-300 transform hover:scale-[1.02] ${isActive
                     ? "bg-gradient-to-r from-amber-500/20 to-amber-600/10 text-amber-400 shadow-lg"
                     : "hover:bg-slate-800/50 text-slate-300 hover:text-white"
-                }`}
+                  }`}
                 style={{
                   animationDelay: `${index * 50}ms`,
                 }}
               >
                 {/* Icon */}
                 <div
-                  className={`relative ${
-                    isActive ? "text-amber-400" : "text-slate-400 group-hover:text-white"
-                  } transition-colors duration-200`}
+                  className={`relative ${isActive ? "text-amber-400" : "text-slate-400 group-hover:text-white"
+                    } transition-colors duration-200`}
                 >
                   <Icon className="h-5 w-5" />
                   {isActive && <div className="absolute inset-0 bg-amber-400/20 rounded-full animate-pulse" />}
@@ -85,19 +82,17 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
                 <div className="flex items-center">
                   {isActive && <div className="w-2 h-2 bg-amber-400 rounded-full animate-pulse" />}
                   <ChevronRight
-                    className={`h-4 w-4 transition-all duration-200 ${
-                      isActive
+                    className={`h-4 w-4 transition-all duration-200 ${isActive
                         ? "text-amber-400 translate-x-1"
                         : "text-transparent group-hover:text-slate-400 group-hover:translate-x-1"
-                    }`}
+                      }`}
                   />
                 </div>
 
                 {/* Hover underline effect */}
                 <div
-                  className={`absolute bottom-0 left-4 right-4 h-0.5 bg-gradient-to-r from-amber-400 to-amber-600 transition-all duration-300 ${
-                    isActive ? "w-full opacity-100" : "w-0 group-hover:w-full opacity-0 group-hover:opacity-100"
-                  }`}
+                  className={`absolute bottom-0 left-4 right-4 h-0.5 bg-gradient-to-r from-amber-400 to-amber-600 transition-all duration-300 ${isActive ? "w-full opacity-100" : "w-0 group-hover:w-full opacity-0 group-hover:opacity-100"
+                    }`}
                 />
               </Link>
             )
@@ -109,30 +104,35 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
           <div className="border-t border-slate-700/50 pt-4">
             <p className="text-xs uppercase tracking-wide text-slate-400 mb-3 px-2">Quick Actions</p>
             <div className="flex gap-2">
-              {/* Sell Button */}
-              <Link
-                href="/sell"
-                onClick={onClose}
-                className="group flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-full bg-slate-800/30 hover:bg-green-500/10 border border-slate-700/50 hover:border-green-500/30 text-slate-400 hover:text-green-400 transition-all duration-300 transform hover:scale-105"
-              >
-                <Package className="h-3.5 w-3.5" />
-                <span className="text-xs font-medium">Sell</span>
-              </Link>
+              {/* If role is individual or organization */}
+              {(user?.role === "individual" || user?.role === "organization") && (
+                <>
+                  {/* Sell Button */}
+                  <Link
+                    href="/sell"
+                    onClick={onClose}
+                    className="group flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-full bg-slate-800/30 hover:bg-green-500/10 border border-slate-700/50 hover:border-green-500/30 text-slate-400 hover:text-green-400 transition-all duration-300 transform hover:scale-105"
+                  >
+                    <Package className="h-3.5 w-3.5" />
+                    <span className="text-xs font-medium">Sell</span>
+                  </Link>
 
-              {/* Donate Button*/}
-              <Link
-                  href="/donate"
-                  onClick={onClose}
-                  className="group flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-full bg-slate-800/30 hover:bg-pink-500/10 border border-slate-700/50 hover:border-pink-500/30 text-slate-400 hover:text-pink-400 transition-all duration-300 transform hover:scale-105"
-                >
-                  <Heart className="h-3.5 w-3.5" />
-                  <span className="text-xs font-medium">Donate</span>
-                </Link>
+                  {/* Donate Button*/}
+                  <Link
+                    href="/donate"
+                    onClick={onClose}
+                    className="group flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-full bg-slate-800/30 hover:bg-pink-500/10 border border-slate-700/50 hover:border-pink-500/30 text-slate-400 hover:text-pink-400 transition-all duration-300 transform hover:scale-105"
+                  >
+                    <Heart className="h-3.5 w-3.5" />
+                    <span className="text-xs font-medium">Donate</span>
+                  </Link>
+                </>
+              )}
 
-              {/* Buy Button - Only show if NGO*/}
+              {/* If role is NGO */}
               {user?.role === "ngo" && (
                 <Link
-                  href="/donate"
+                  href="/raise-request"
                   onClick={onClose}
                   className="group flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-full bg-slate-800/30 hover:bg-pink-500/10 border border-slate-700/50 hover:border-pink-500/30 text-slate-400 hover:text-pink-400 transition-all duration-300 transform hover:scale-105"
                 >
@@ -143,6 +143,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
             </div>
           </div>
         </div>
+
 
         {/* Footer */}
         <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-slate-700/50">
