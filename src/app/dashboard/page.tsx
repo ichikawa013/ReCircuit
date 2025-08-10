@@ -1,10 +1,13 @@
-//src\app\dashboard\page.tsx
 "use client"
 
-import { useEffect, useState } from "react"
+import type React from "react"
+
+import { useEffect, useState,useCallback } from "react"
 import {
   collection,
   getDocs,
+  addDoc,
+  serverTimestamp,
   limit,
   orderBy,
   query,
@@ -19,11 +22,13 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Package, Heart, TrendingUp, Clock, Activity, ArrowRight, X } from "lucide-react"
+import { Textarea } from "@/components/ui/textarea"
+import { Package, Heart, TrendingUp, Clock, Activity, ArrowRight, X, FileText, Send, CheckCircle } from "lucide-react"
 import Link from "next/link"
 
 type ActivityType = "Sale" | "Donation"
 type ActivityStatus = "pending" | "completed"
+type DonationRequestStatus = "pending" | "accepted" | "rejected"
 
 interface ActivityRow {
   id: string
@@ -43,12 +48,23 @@ interface DashboardStats {
 interface TypedUser {
   uid: string
   role?: string
+  name?: string
+}
+
+interface DonationRequest {
+  id: string
+  ngoId: string
+  ngoName: string
+  comment: string
+  status: DonationRequestStatus
+  createdAt: { toDate: () => Date }
 }
 
 export default function DashboardHome() {
   const { user, loading } = useAuth()
   const typedUser = user as TypedUser | null
 
+  // Existing dashboard state
   const [stats, setStats] = useState<DashboardStats>({
     listed: 0,
     sold: 0,
@@ -60,81 +76,167 @@ export default function DashboardHome() {
   const [error, setError] = useState<string | null>(null)
   const [modalOpen, setModalOpen] = useState<string | null>(null)
 
+  // NGO-specific state
+  const [ngoComment, setNgoComment] = useState<string>("")
+  const [donationRequests, setDonationRequests] = useState<DonationRequest[]>([])
+  const [submitting, setSubmitting] = useState<boolean>(false)
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
+
+  // Fetch NGO donation requests
+  const fetchNgoRequests = useCallback(async () => {
+  if (!typedUser) return;
+
+  try {
+    const db = getDbClient();
+    const requestsSnap = await getDocs(
+      query(
+        collection(db, "donationRequests"),
+        where("ngoId", "==", typedUser.uid),
+        orderBy("createdAt", "desc")
+      )
+    );
+
+    const requests: DonationRequest[] = requestsSnap.docs.map(
+      (doc: QueryDocumentSnapshot<DocumentData>) => {
+        const data = doc.data() as Omit<DonationRequest, "id">;
+        return {
+          id: doc.id,
+          ...data,
+        };
+      }
+    );
+
+    setDonationRequests(requests);
+  } catch (e) {
+    console.error("Failed to fetch NGO requests:", e);
+    setError("Failed to load donation requests. Please try again.");
+  }
+}, [typedUser]);
+
+
+  // Handle NGO form submission
+  const handleNgoSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!typedUser || !ngoComment.trim()) return
+
+    setSubmitting(true)
+    setError(null)
+
+    try {
+      const db = getDbClient()
+      await addDoc(collection(db, "donationRequests"), {
+        ngoId: typedUser.uid,
+        ngoName: typedUser.name || "NGO",
+        comment: ngoComment.trim(),
+        status: "pending",
+        createdAt: serverTimestamp(),
+      })
+
+      setNgoComment("")
+      setSuccessMessage("Your request has been posted and you will be contacted once accepted.")
+      await fetchNgoRequests()
+
+      // Clear success message after 5 seconds
+      setTimeout(() => setSuccessMessage(null), 5000)
+    } catch (e) {
+      console.error("Failed to submit NGO request:", e)
+      setError("Failed to submit request. Please try again.")
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  // Get status badge for donation requests
+  const getRequestStatusBadge = (status: DonationRequestStatus) => {
+    const variants = {
+      pending: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30 hover:bg-yellow-500/30",
+      accepted: "bg-green-500/20 text-green-400 border-green-500/30 hover:bg-green-500/30",
+      rejected: "bg-red-500/20 text-red-400 border-red-500/30 hover:bg-red-500/30",
+    }
+
+    return (
+      <Badge variant="secondary" className={variants[status]}>
+        {status.charAt(0).toUpperCase() + status.slice(1)}
+      </Badge>
+    )
+  }
+
   useEffect(() => {
     const fetchDashboardData = async () => {
       if (!typedUser) {
         setFetching(false)
         return
       }
+
       setFetching(true)
       setError(null)
 
       try {
-        const db = getDbClient()
+        if (typedUser.role?.toLowerCase() === "ngo") {
+          await fetchNgoRequests()
+        } else {
+          const db = getDbClient()
+          // Fetch counts
+          const listedSnap = await getDocs(query(collection(db, "listings"), where("ownerId", "==", typedUser.uid)))
+          const soldSnap = await getDocs(
+            query(
+              collection(db, "transactions"),
+              where("sellerId", "==", typedUser.uid),
+              where("status", "==", "completed"),
+            ),
+          )
 
-        // Fetch counts
-        const listedSnap = await getDocs(query(collection(db, "listings"), where("ownerId", "==", typedUser.uid)))
+          let donatedCount = 0
+          if (typedUser.role !== "ngo") {
+            const donatedSnap = await getDocs(query(collection(db, "donations"), where("ownerId", "==", typedUser.uid)))
+            donatedCount = donatedSnap.size
+          }
 
-        const soldSnap = await getDocs(
-          query(
-            collection(db, "transactions"),
-            where("sellerId", "==", typedUser.uid),
-            where("status", "==", "completed"),
-          ),
-        )
+          const pendingSnap = await getDocs(
+            query(
+              collection(db, "transactions"),
+              where("sellerId", "==", typedUser.uid),
+              where("status", "==", "pending"),
+            ),
+          )
 
-        let donatedCount = 0
-        if (typedUser.role !== "ngo") {
-          const donatedSnap = await getDocs(query(collection(db, "donations"), where("ownerId", "==", typedUser.uid)))
-          donatedCount = donatedSnap.size
+          setStats({
+            listed: listedSnap.size,
+            sold: soldSnap.size,
+            donated: donatedCount,
+            pending: pendingSnap.size,
+          })
+
+          // Fetch recent activity
+          const txSnap = await getDocs(
+            query(
+              collection(db, "transactions"),
+              where("sellerId", "==", typedUser.uid),
+              orderBy("createdAt", "desc"),
+              limit(5),
+            ),
+          )
+
+          const rows: ActivityRow[] = txSnap.docs.map((doc: QueryDocumentSnapshot<DocumentData>) => {
+            const d = doc.data() as {
+              type?: string
+              itemName?: string
+              createdAt?: { toDate: () => Date }
+              status?: string
+            }
+            const type: ActivityType = d.type === "Donation" ? "Donation" : "Sale"
+            const status: ActivityStatus = d.status === "completed" ? "completed" : "pending"
+            return {
+              id: doc.id,
+              type,
+              itemName: d.itemName ?? "Item",
+              date: d.createdAt ? d.createdAt.toDate().toLocaleDateString() : "",
+              status,
+            }
+          })
+
+          setRecent(rows)
         }
-
-        const pendingSnap = await getDocs(
-          query(
-            collection(db, "transactions"),
-            where("sellerId", "==", typedUser.uid),
-            where("status", "==", "pending"),
-          ),
-        )
-
-        setStats({
-          listed: listedSnap.size,
-          sold: soldSnap.size,
-          donated: donatedCount,
-          pending: pendingSnap.size,
-        })
-
-        // Fetch recent activity
-        const txSnap = await getDocs(
-          query(
-            collection(db, "transactions"),
-            where("sellerId", "==", typedUser.uid),
-            orderBy("createdAt", "desc"),
-            limit(5),
-          ),
-        )
-
-        const rows: ActivityRow[] = txSnap.docs.map((doc: QueryDocumentSnapshot<DocumentData>) => {
-          const d = doc.data() as {
-            type?: string
-            itemName?: string
-            createdAt?: { toDate: () => Date }
-            status?: string
-          }
-
-          const type: ActivityType = d.type === "Donation" ? "Donation" : "Sale"
-          const status: ActivityStatus = d.status === "completed" ? "completed" : "pending"
-
-          return {
-            id: doc.id,
-            type,
-            itemName: d.itemName ?? "Item",
-            date: d.createdAt ? d.createdAt.toDate().toLocaleDateString() : "",
-            status,
-          }
-        })
-
-        setRecent(rows)
       } catch (e) {
         console.error("Dashboard fetch error:", e)
         setError("Failed to load dashboard data. Please check your connection and try again.")
@@ -144,7 +246,7 @@ export default function DashboardHome() {
     }
 
     void fetchDashboardData()
-  }, [typedUser])
+  }, [typedUser, fetchNgoRequests])
 
   const getStatusBadge = (status: ActivityStatus) => {
     return (
@@ -180,7 +282,6 @@ export default function DashboardHome() {
           <div className="absolute bottom-1/4 left-1/3 w-72 h-72 bg-teal-500/6 rounded-full blur-3xl animate-pulse delay-2000" />
           <div className="absolute inset-0 bg-[linear-gradient(rgba(34,197,94,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(34,197,94,0.03)_1px,transparent_1px)] bg-[size:50px_50px]" />
         </div>
-
         <div className="relative z-10 text-center space-y-4">
           <div className="w-16 h-16 border-4 border-green-400/30 border-t-green-400 rounded-full animate-spin mx-auto"></div>
           <p className="text-slate-300 text-lg">Loading your dashboard...</p>
@@ -200,7 +301,6 @@ export default function DashboardHome() {
           <div className="absolute bottom-1/4 left-1/3 w-72 h-72 bg-teal-500/6 rounded-full blur-3xl animate-pulse delay-2000" />
           <div className="absolute inset-0 bg-[linear-gradient(rgba(34,197,94,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(34,197,94,0.03)_1px,transparent_1px)] bg-[size:50px_50px]" />
         </div>
-
         <div className="relative z-10 p-6">
           <Alert className="max-w-md bg-slate-800/30 backdrop-blur-md border-slate-700/50">
             <AlertDescription className="text-slate-300">Please sign in to view your dashboard.</AlertDescription>
@@ -210,6 +310,152 @@ export default function DashboardHome() {
     )
   }
 
+  // NGO Dashboard
+  if (typedUser.role === "ngo") {
+    return (
+      <div className="min-h-screen text-white relative overflow-hidden">
+        {/* Unified Background */}
+        <div className="fixed inset-0 z-0">
+          <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-950" />
+          <div className="absolute top-0 left-1/4 w-96 h-96 bg-green-500/10 rounded-full blur-3xl animate-pulse" />
+          <div className="absolute top-1/3 right-1/4 w-80 h-80 bg-emerald-500/8 rounded-full blur-3xl animate-pulse delay-1000" />
+          <div className="absolute bottom-1/4 left-1/3 w-72 h-72 bg-teal-500/6 rounded-full blur-3xl animate-pulse delay-2000" />
+          <div className="absolute inset-0 bg-[linear-gradient(rgba(34,197,94,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(34,197,94,0.03)_1px,transparent_1px)] bg-[size:50px_50px]" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(255,255,255,0.01),transparent_70%)]" />
+        </div>
+
+        <main className="relative z-10 p-6 space-y-8 max-w-7xl mx-auto animate-fade-in-up">
+          {/* Header */}
+          <div className="space-y-2">
+            <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent">
+              Welcome{typedUser.name ? `, ${typedUser.name}` : ""}
+            </h1>
+            <p className="text-slate-400 text-lg">
+              You can raise donation requests and track them here. Connect with donors to help your cause.
+            </p>
+          </div>
+
+          {error && (
+            <Alert variant="destructive" className="bg-red-500/10 border-red-500/20 backdrop-blur-sm animate-fade-in">
+              <AlertDescription className="text-red-400">{error}</AlertDescription>
+            </Alert>
+          )}
+
+          {successMessage && (
+            <Alert className="bg-green-500/10 border-green-500/20 backdrop-blur-sm animate-fade-in">
+              <CheckCircle className="h-4 w-4 text-green-400" />
+              <AlertDescription className="text-green-400">{successMessage}</AlertDescription>
+            </Alert>
+          )}
+
+          {/* Request Form */}
+          <Card className="bg-slate-800/30 backdrop-blur-md border border-slate-700/50 hover:border-green-500/30 transition-all duration-300 animate-fade-in-up">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-white text-2xl">
+                <div className="p-2 bg-green-500/20 rounded-lg">
+                  <FileText className="h-6 w-6 text-green-400" />
+                </div>
+                Create Donation Request
+              </CardTitle>
+              <p className="text-slate-400">Describe what you need and how it will help your cause</p>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleNgoSubmit} className="space-y-6">
+                <div className="space-y-2">
+                  <label htmlFor="ngoComment" className="text-sm font-medium text-slate-300">
+                    Request Description
+                  </label>
+                  <Textarea
+                    id="ngoComment"
+                    value={ngoComment}
+                    onChange={(e) => setNgoComment(e.target.value)}
+                    placeholder="Describe your donation request in detail. Include what items you need, how they will be used, and the impact they will have..."
+                    className="min-h-[120px] bg-slate-900/50 border-slate-700/50 text-white placeholder:text-slate-500 focus:border-green-500/50 focus:ring-green-500/20 resize-none"
+                    required
+                  />
+                </div>
+                <Button
+                  type="submit"
+                  disabled={submitting || !ngoComment.trim()}
+                  className="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-semibold py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                >
+                  {submitting ? (
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      Submitting...
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <Send className="h-4 w-4" />
+                      Submit Request
+                    </div>
+                  )}
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+
+          {/* Requests Table */}
+          <Card className="bg-slate-800/30 backdrop-blur-md border border-slate-700/50 hover:border-blue-500/30 transition-all duration-300 animate-fade-in-up delay-200">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-white">
+                <div className="p-2 bg-blue-500/20 rounded-lg">
+                  <Activity className="h-5 w-5 text-blue-400" />
+                </div>
+                Your Donation Requests
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-hidden rounded-lg border border-slate-700/50">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="border-slate-700/50 bg-slate-900/50">
+                      <TableHead className="text-slate-300 font-semibold">Request</TableHead>
+                      <TableHead className="text-slate-300 font-semibold">Status</TableHead>
+                      <TableHead className="text-slate-300 font-semibold">Date</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {donationRequests.length === 0 ? (
+                      <TableRow className="border-slate-700/50 hover:bg-slate-800/30">
+                        <TableCell colSpan={3} className="text-center py-12">
+                          <div className="space-y-3">
+                            <FileText className="h-12 w-12 text-slate-500 mx-auto" />
+                            <p className="text-slate-400 text-lg">No donation requests found</p>
+                            <p className="text-slate-500 text-sm">Create your first request above!</p>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      donationRequests.map((request, index) => (
+                        <TableRow
+                          key={request.id}
+                          className="border-slate-700/50 hover:bg-slate-800/30 transition-colors duration-200"
+                          style={{ animationDelay: `${index * 100}ms` }}
+                        >
+                          <TableCell className="text-slate-300 max-w-md">
+                            <div className="truncate" title={request.comment}>
+                              {request.comment}
+                            </div>
+                          </TableCell>
+                          <TableCell>{getRequestStatusBadge(request.status)}</TableCell>
+                          <TableCell className="text-slate-300">
+                            {request.createdAt.toDate().toLocaleDateString()}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        </main>
+      </div>
+    )
+  }
+
+  // Original Dashboard for individual/organization users
   return (
     <div className="min-h-screen text-white relative overflow-hidden">
       {/* Unified Background */}
@@ -460,7 +706,6 @@ export default function DashboardHome() {
             className="absolute inset-0 bg-black/40 backdrop-blur-md transition-opacity duration-300"
             onClick={closeModal}
           />
-
           {/* Modal Content */}
           <div className="relative bg-slate-800/40 backdrop-blur-xl border border-slate-700/50 rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl transform transition-all duration-300 scale-100 animate-fade-in-up">
             {/* Close Button */}
@@ -470,7 +715,6 @@ export default function DashboardHome() {
             >
               <X className="h-4 w-4 group-hover:rotate-90 transition-transform duration-200" />
             </button>
-
             {/* Modal Content */}
             <div className="space-y-6">
               <div className="text-center space-y-4">
@@ -481,7 +725,6 @@ export default function DashboardHome() {
                     <Heart className="h-8 w-8 text-pink-400" />
                   )}
                 </div>
-
                 <div className="space-y-2">
                   <h2 className="text-2xl font-bold text-white">
                     {modalOpen === "sell" ? "Sell Items" : "Donate Items"}
@@ -493,7 +736,6 @@ export default function DashboardHome() {
                   </p>
                 </div>
               </div>
-
               <div className="flex gap-3">
                 <Button
                   asChild
@@ -508,7 +750,6 @@ export default function DashboardHome() {
                     <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform duration-300" />
                   </Link>
                 </Button>
-
                 <Button
                   onClick={closeModal}
                   variant="outline"

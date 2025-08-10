@@ -4,7 +4,7 @@ import Head from "next/head";
 
 export default function Home() {
   // Redirect to /login
-  redirect("/login");
+  redirect("/landing");
 
   return (
     <>

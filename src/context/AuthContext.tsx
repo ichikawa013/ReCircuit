@@ -1,4 +1,3 @@
-// authcontext.tsx
 'use client';
 
 import { useContext } from "react";
@@ -50,9 +49,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (snap.exists()) {
           const data = snap.data() as Partial<UserData> & { role?: string; name?: string };
-          const normalizedRole =
-            data.role === "individual" || data.role === "organization" || data.role === "ngo"
-              ? data.role
+          
+          // ✅ Normalize role to lowercase if it matches expected values
+          const rawRole = typeof data.role === "string" ? data.role.toLowerCase() : undefined;
+          const normalizedRole: UserRole | undefined =
+            rawRole === "individual" || rawRole === "organization" || rawRole === "ngo"
+              ? rawRole
               : undefined;
 
           setUser({
