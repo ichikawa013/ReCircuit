@@ -100,49 +100,47 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
         </nav>
 
         {/* Quick Actions Section */}
-        <div className="px-4 pb-4">
-          <div className="border-t border-slate-700/50 pt-4">
-            <p className="text-xs uppercase tracking-wide text-slate-400 mb-3 px-2">Quick Actions</p>
-            <div className="flex gap-2">
-              {/* If role is individual or organization */}
-              {(user?.role === "individual" || user?.role === "organization") && (
-                <>
-                  {/* Sell Button */}
-                  <Link
-                    href="/sell"
-                    onClick={onClose}
-                    className="group flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-full bg-slate-800/30 hover:bg-green-500/10 border border-slate-700/50 hover:border-green-500/30 text-slate-400 hover:text-green-400 transition-all duration-300 transform hover:scale-105"
-                  >
-                    <Package className="h-3.5 w-3.5" />
-                    <span className="text-xs font-medium">Sell</span>
-                  </Link>
+<div className="px-4 pb-4">
+  <div className="border-t border-slate-700/50 pt-4">
+    <p className="text-xs uppercase tracking-wide text-slate-400 mb-3 px-2">Quick Actions</p>
+    <div className="flex gap-2">
+      {/* If role is NGO → only Raise Request */}
+      {user?.role === "ngo" ? (
+        <Link
+          href="/raise-request"
+          onClick={onClose}
+          className="group flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-full bg-slate-800/30 hover:bg-pink-500/10 border border-slate-700/50 hover:border-pink-500/30 text-slate-400 hover:text-pink-400 transition-all duration-300 transform hover:scale-105"
+        >
+          <Heart className="h-3.5 w-3.5" />
+          <span className="text-xs font-medium">Raise a Request</span>
+        </Link>
+      ) : (
+        <>
+          {/* Sell Button */}
+          <Link
+            href="/sell"
+            onClick={onClose}
+            className="group flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-full bg-slate-800/30 hover:bg-green-500/10 border border-slate-700/50 hover:border-green-500/30 text-slate-400 hover:text-green-400 transition-all duration-300 transform hover:scale-105"
+          >
+            <Package className="h-3.5 w-3.5" />
+            <span className="text-xs font-medium">Sell</span>
+          </Link>
 
-                  {/* Donate Button*/}
-                  <Link
-                    href="/donate"
-                    onClick={onClose}
-                    className="group flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-full bg-slate-800/30 hover:bg-pink-500/10 border border-slate-700/50 hover:border-pink-500/30 text-slate-400 hover:text-pink-400 transition-all duration-300 transform hover:scale-105"
-                  >
-                    <Heart className="h-3.5 w-3.5" />
-                    <span className="text-xs font-medium">Donate</span>
-                  </Link>
-                </>
-              )}
+          {/* Donate Button */}
+          <Link
+            href="/donate"
+            onClick={onClose}
+            className="group flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-full bg-slate-800/30 hover:bg-pink-500/10 border border-slate-700/50 hover:border-pink-500/30 text-slate-400 hover:text-pink-400 transition-all duration-300 transform hover:scale-105"
+          >
+            <Heart className="h-3.5 w-3.5" />
+            <span className="text-xs font-medium">Donate</span>
+          </Link>
+        </>
+      )}
+    </div>
+  </div>
+</div>
 
-              {/* If role is NGO */}
-              {user?.role === "ngo" && (
-                <Link
-                  href="/raise-request"
-                  onClick={onClose}
-                  className="group flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-full bg-slate-800/30 hover:bg-pink-500/10 border border-slate-700/50 hover:border-pink-500/30 text-slate-400 hover:text-pink-400 transition-all duration-300 transform hover:scale-105"
-                >
-                  <Heart className="h-3.5 w-3.5" />
-                  <span className="text-xs font-medium">Raise a Request</span>
-                </Link>
-              )}
-            </div>
-          </div>
-        </div>
 
 
         {/* Footer */}
