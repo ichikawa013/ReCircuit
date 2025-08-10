@@ -1,90 +1,193 @@
-'use client';
-import { useState } from 'react';
-import { getAuthClient } from '@/helpers/firebase/firebase';
-import { signInWithEmailAndPassword } from 'firebase/auth';
-import { useRouter } from 'next/navigation';
+"use client"
+
+import type React from "react"
+import { useState } from "react"
+import { getAuthClient } from "@/helpers/firebase/firebase"
+import { signInWithEmailAndPassword } from "firebase/auth"
+import { useRouter } from "next/navigation"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Loader2, LogIn, ArrowRight } from "lucide-react"
+import Link from "next/link"
+
+interface LoginFormData {
+  email: string
+  password: string
+}
 
 export default function Login() {
-    const router = useRouter();
+  const router = useRouter()
+  const [formData, setFormData] = useState<LoginFormData>({
+    email: "",
+    password: "",
+  })
+  const [error, setError] = useState<string>("")
+  const [loading, setLoading] = useState<boolean>(false)
 
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-    const [error, setError] = useState('');
-    const [loading, setLoading] = useState(false);
+  const handleInputChange = (field: keyof LoginFormData) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData((prev) => ({
+      ...prev,
+      [field]: e.target.value,
+    }))
+  }
 
-    const handleLogin = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setLoading(true);
-        setError('');
+  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    setLoading(true)
+    setError("")
 
-        try {
-            const auth = getAuthClient(); // 🔐 Client-side Firebase auth
-            await signInWithEmailAndPassword(auth, email, password);
-            router.push('/dashboard'); // 🎯 Redirect after successful login
-        } catch (err) {
-            if (err instanceof Error) {
-                setError(err.message);
-            } else {
-                setError('An unknown error occurred');
-            }
-        } finally {
-            setLoading(false);
-        }
-    };
+    try {
+      const auth = getAuthClient()
+      await signInWithEmailAndPassword(auth, formData.email, formData.password)
+      router.push("/dashboard")
+    } catch (err) {
+      if (err instanceof Error) {
+        setError(err.message)
+      } else {
+        setError("An unknown error occurred")
+      }
+    } finally {
+      setLoading(false)
+    }
+  }
 
-    return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-950 px-4">
-            <div className="max-w-md w-full bg-gray-900 p-8 rounded-xl shadow-lg border border-gray-800">
-                <h2 className="text-3xl font-bold text-white text-center mb-6">Login</h2>
+  return (
+    <div className="min-h-screen flex items-center justify-center text-white overflow-hidden relative">
+      {/* Unified Cool Background - Same as landing page */}
+      <div className="fixed inset-0 z-0">
+        {/* Base gradient */}
+        <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-950" />
 
-                {error && (
-                    <div className="bg-red-500 text-white text-sm p-3 rounded mb-4">
-                        {error}
-                    </div>
-                )}
+        {/* Animated gradient orbs */}
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-green-500/10 rounded-full blur-3xl animate-pulse" />
+        <div className="absolute top-1/3 right-1/4 w-80 h-80 bg-emerald-500/8 rounded-full blur-3xl animate-pulse delay-1000" />
+        <div className="absolute bottom-1/4 left-1/3 w-72 h-72 bg-teal-500/6 rounded-full blur-3xl animate-pulse delay-2000" />
 
-                <form onSubmit={handleLogin} className="space-y-5">
-                    <div>
-                        <label htmlFor="email" className="block text-sm text-gray-300 mb-1">
-                            Email
-                        </label>
-                        <input
-                            type="email"
-                            id="email"
-                            className="w-full px-4 py-2 rounded-md bg-gray-800 text-white border border-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            required
-                        />
-                    </div>
+        {/* Grid pattern overlay */}
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(34,197,94,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(34,197,94,0.03)_1px,transparent_1px)] bg-[size:50px_50px]" />
 
-                    <div>
-                        <label htmlFor="password" className="block text-sm text-gray-300 mb-1">
-                            Password
-                        </label>
-                        <input
-                            type="password"
-                            id="password"
-                            className="w-full px-4 py-2 rounded-md bg-gray-800 text-white border border-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            required
-                        />
-                    </div>
+        {/* Subtle noise texture */}
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(255,255,255,0.01),transparent_70%)]" />
+      </div>
 
-                    <button
-                        type="submit"
-                        disabled={loading}
-                        className="w-full py-2 bg-blue-600 hover:bg-blue-700 transition-colors rounded-md text-white font-semibold"
-                    >
-                        {loading ? 'Logging In...' : 'Login'}
-                    </button>
-                </form>
+      {/* Floating Elements */}
+      <div className="absolute top-20 left-20 w-20 h-20 bg-green-400/10 rounded-full blur-xl animate-pulse" />
+      <div className="absolute bottom-20 right-20 w-16 h-16 bg-emerald-400/10 rounded-full blur-xl animate-pulse delay-1000" />
+      <div className="absolute top-1/2 left-10 w-12 h-12 bg-teal-400/10 rounded-full blur-xl animate-pulse delay-2000" />
 
-                <p className="text-sm text-gray-400 text-center mt-4">
-                    Don&apos;t have an account? <a href="/signup" className="text-blue-400 hover:underline">Sign Up</a>
-                </p>
+      <div className="relative z-10 w-full max-w-md px-4 animate-fade-in-up">
+        <Card className="bg-slate-800/30 backdrop-blur-md border border-slate-700/50 shadow-2xl hover:shadow-green-500/10 transition-all duration-500 transform hover:scale-[1.02]">
+          <CardHeader className="space-y-1 text-center">
+            <div className="flex items-center justify-center mb-6">
+              <div className="relative">
+                <div className="flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-br from-green-500/20 to-green-600/20 backdrop-blur-sm animate-pulse">
+                  <LogIn className="w-8 h-8 text-green-400" />
+                </div>
+                <div className="absolute inset-0 bg-green-400/20 rounded-full blur-xl animate-pulse" />
+              </div>
             </div>
+            <CardTitle className="text-3xl font-bold bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent">
+              Welcome back
+            </CardTitle>
+            <CardDescription className="text-slate-400">Enter your credentials to access your account</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {error && (
+              <Alert variant="destructive" className="bg-red-500/10 border-red-500/20 backdrop-blur-sm animate-fade-in">
+                <AlertDescription className="text-red-400">{error}</AlertDescription>
+              </Alert>
+            )}
+
+            <form onSubmit={handleLogin} className="space-y-6">
+              <div className="space-y-2">
+                <Label htmlFor="email" className="text-slate-300 font-medium">
+                  Email
+                </Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="Enter your email"
+                  value={formData.email}
+                  onChange={handleInputChange("email")}
+                  required
+                  disabled={loading}
+                  className="bg-slate-700/50 border-slate-600/50 text-white placeholder:text-slate-400 focus:border-green-400/50 focus:ring-green-400/20 backdrop-blur-sm transition-all duration-300 hover:bg-slate-700/70"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="password" className="text-slate-300 font-medium">
+                  Password
+                </Label>
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="Enter your password"
+                  value={formData.password}
+                  onChange={handleInputChange("password")}
+                  required
+                  disabled={loading}
+                  className="bg-slate-700/50 border-slate-600/50 text-white placeholder:text-slate-400 focus:border-green-400/50 focus:ring-green-400/20 backdrop-blur-sm transition-all duration-300 hover:bg-slate-700/70"
+                />
+              </div>
+
+              <Button
+                type="submit"
+                className="w-full group bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-semibold py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={loading}
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                    Signing in...
+                  </>
+                ) : (
+                  <>
+                    Sign in
+                    <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform duration-300" />
+                  </>
+                )}
+              </Button>
+            </form>
+
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t border-slate-700/50" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-slate-800/50 px-2 text-slate-400 backdrop-blur-sm">New to ReCircuit?</span>
+              </div>
+            </div>
+
+            <div className="text-center">
+              <Link
+                href="/signup"
+                className="group inline-flex items-center font-medium text-green-400 hover:text-green-300 transition-colors duration-300"
+              >
+                Create your account
+                <ArrowRight className="ml-1 h-4 w-4 group-hover:translate-x-1 transition-transform duration-300" />
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Brand Footer */}
+        <div className="mt-8 text-center animate-fade-in-up delay-300">
+          <div className="flex items-center justify-center space-x-2 mb-2">
+            <div className="w-6 h-6 bg-gradient-to-br from-green-400 to-emerald-600 rounded-lg flex items-center justify-center">
+              <span className="text-slate-900 font-bold text-xs">RC</span>
+            </div>
+            <span className="text-lg font-bold">
+              <span className="text-green-400">Re</span>
+              <span className="text-slate-300">Circuit</span>
+            </span>
+          </div>
+          <p className="text-slate-400 text-sm">Making electronics sustainable, one device at a time.</p>
         </div>
-    );
+      </div>
+    </div>
+  )
 }

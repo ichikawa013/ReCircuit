@@ -1,8 +1,6 @@
-//src\app\dashboard\layout.tsx
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
 import Sidebar from "@/components/sidebar"
 import Navbar from "@/components/Navbar"

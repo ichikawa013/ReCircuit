@@ -1,7 +1,10 @@
+// authcontext.tsx
 'use client';
+
 import { useContext } from "react";
 import { createContext, useState, useEffect, type ReactNode } from "react";
-import { onAuthStateChanged, type User as FirebaseUser } from "firebase/auth";
+import { useRouter } from "next/navigation";
+import { onAuthStateChanged, type User as FirebaseUser, signOut } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { getAuthClient, getDbClient } from "@/helpers/firebase/firebase";
 
@@ -17,13 +20,19 @@ export type UserData = {
 type AuthContextType = {
   user: UserData | null;
   loading: boolean;
+  logout: () => Promise<void>;
 };
 
-const AuthContext = createContext<AuthContextType>({ user: null, loading: true });
+const AuthContext = createContext<AuthContextType>({
+  user: null,
+  loading: true,
+  logout: async () => {},
+});
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const router = useRouter();
 
   useEffect(() => {
     const auth = getAuthClient();
@@ -66,11 +75,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => unsubscribe();
   }, []);
 
-  return <AuthContext.Provider value={{ user, loading }}>{children}</AuthContext.Provider>;
+  const logout = async () => {
+    const auth = getAuthClient();
+    await signOut(auth);
+    setUser(null);
+    router.push("/landing"); // ✅ redirect after logout
+  };
 
-  
+  return (
+    <AuthContext.Provider value={{ user, loading, logout }}>
+      {children}
+    </AuthContext.Provider>
+  );
 }
 
 export function useAuth(): AuthContextType {
-return useContext(AuthContext);
+  return useContext(AuthContext);
 }
