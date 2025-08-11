@@ -1,7 +1,8 @@
+// src/app/transaction/page.tsx
 "use client"
 import { useEffect, useState } from "react"
 import Image from "next/image"
-import { CheckCircle, Clock, Package, AlertCircle } from "lucide-react"
+import { Clock, Package, AlertCircle } from "lucide-react"
 import { useAuth } from "@/context/AuthContext"
 import Navbar from "@/components/Navbar"
 import Sidebar from "@/components/sidebar"
@@ -22,7 +23,7 @@ interface Transaction {
   createdAt: Timestamp
 }
 
-export default function TransactionsPage() {
+export default function PendingTasksPage() {
   const { user, loading } = useAuth()
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false)
@@ -54,7 +55,7 @@ export default function TransactionsPage() {
         setTransactions(data)
       } catch (err) {
         console.error("Error fetching transactions:", err)
-        setError("Failed to load transactions. Please try again.")
+        setError("Failed to load pending tasks. Please try again.")
       }
       setLoadingData(false)
     }
@@ -102,7 +103,7 @@ export default function TransactionsPage() {
           <div className="relative w-full h-48 rounded-lg overflow-hidden bg-slate-700/50 border border-slate-600/50 backdrop-blur-sm">
             <Image
               src={tx.imageUrl || "/placeholder.svg"}
-              alt="Transaction image"
+              alt="Pending task image"
               fill
               className="object-cover"
               sizes="(max-width: 768px) 100vw, 50vw"
@@ -148,7 +149,7 @@ export default function TransactionsPage() {
 
         <div className="relative z-10 text-center space-y-4">
           <div className="w-16 h-16 border-4 border-blue-400/30 border-t-blue-400 rounded-full animate-spin mx-auto"></div>
-          <p className="text-slate-300 text-lg">Loading transactions...</p>
+          <p className="text-slate-300 text-lg">Loading pending tasks...</p>
         </div>
       </div>
     )
@@ -168,7 +169,7 @@ export default function TransactionsPage() {
 
         <div className="relative z-10 p-6">
           <Alert className="max-w-md bg-slate-800/30 backdrop-blur-md border-slate-700/50">
-            <AlertDescription className="text-slate-300">Please sign in to view your transactions.</AlertDescription>
+            <AlertDescription className="text-slate-300">Please sign in to view your pending tasks.</AlertDescription>
           </Alert>
         </div>
       </div>
@@ -176,7 +177,6 @@ export default function TransactionsPage() {
   }
 
   const pending = transactions.filter((t) => t.status === "pending")
-  const done = transactions.filter((t) => t.status === "done")
 
   return (
     <div className="min-h-screen text-white relative overflow-hidden">
@@ -191,15 +191,14 @@ export default function TransactionsPage() {
       </div>
 
       {/* Floating Elements */}
-      <div className="absolute top-20 left-20 w-20 h-20 bg-blue-400/10 rounded-full blur-xl animate-pulse" />
-      <div className="absolute bottom-20 right-20 w-16 h-16 bg-green-400/10 rounded-full blur-xl animate-pulse delay-1000" />
-      <div className="absolute top-1/2 right-10 w-12 h-12 bg-emerald-400/10 rounded-full blur-xl animate-pulse delay-2000" />
+      <div className="absolute top-20 left-20 w-20 h-20 bg-yellow-400/10 rounded-full blur-xl animate-pulse" />
+      <div className="absolute bottom-20 right-20 w-16 h-16 bg-yellow-400/10 rounded-full blur-xl animate-pulse delay-1000" />
+      <div className="absolute top-1/2 right-10 w-12 h-12 bg-yellow-400/10 rounded-full blur-xl animate-pulse delay-2000" />
 
       <div className="relative z-10">
         <Navbar toggleSidebar={toggleSidebar} isSidebarOpen={isSidebarOpen} />
         <Sidebar open={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
 
-        {/* Backdrop blur overlay when sidebar is open */}
         {isSidebarOpen && (
           <div
             className="fixed inset-0 bg-black/20 backdrop-blur-sm z-30 transition-all duration-300 lg:hidden"
@@ -210,9 +209,11 @@ export default function TransactionsPage() {
         <main className="pt-16 p-6 space-y-8 max-w-7xl mx-auto animate-fade-in-up">
           <div className="space-y-2">
             <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent">
-              Transactions
+              Pending Tasks
             </h1>
-            <p className="text-slate-400 text-lg">Track your donation submissions and their status.</p>
+            <p className="text-slate-400 text-lg">
+              Review and process donation submissions awaiting action.
+            </p>
           </div>
 
           {error && (
@@ -222,13 +223,12 @@ export default function TransactionsPage() {
             </Alert>
           )}
 
-          {/* Pending Transactions */}
           <section className="space-y-4">
             <div className="flex items-center gap-2">
               <div className="p-2 bg-yellow-500/20 rounded-lg">
                 <Clock className="h-5 w-5 text-yellow-400" />
               </div>
-              <h2 className="text-2xl font-semibold text-white">Pending Transactions</h2>
+              <h2 className="text-2xl font-semibold text-white">Pending Tasks</h2>
               <Badge
                 variant="secondary"
                 className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30 hover:bg-yellow-500/30"
@@ -249,40 +249,7 @@ export default function TransactionsPage() {
                       <Clock className="h-12 w-12 text-yellow-400" />
                     </div>
                   </div>
-                  <p className="text-slate-400">No pending transactions found.</p>
-                </CardContent>
-              </Card>
-            )}
-          </section>
-
-          {/* Completed Transactions */}
-          <section className="space-y-4">
-            <div className="flex items-center gap-2">
-              <div className="p-2 bg-green-500/20 rounded-lg">
-                <CheckCircle className="h-5 w-5 text-green-400" />
-              </div>
-              <h2 className="text-2xl font-semibold text-white">Completed Transactions</h2>
-              <Badge
-                variant="secondary"
-                className="bg-green-500/20 text-green-400 border-green-500/30 hover:bg-green-500/30"
-              >
-                {done.length}
-              </Badge>
-            </div>
-
-            {done.length > 0 ? (
-              <div className="grid gap-4 md:grid-cols-2">
-                {done.map((tx, index) => renderTransactionCard(tx, index + pending.length))}
-              </div>
-            ) : (
-              <Card className="text-center py-8 bg-slate-800/30 backdrop-blur-md border border-slate-700/50 shadow-xl">
-                <CardContent>
-                  <div className="flex justify-center mb-4">
-                    <div className="p-4 bg-green-500/20 rounded-full">
-                      <CheckCircle className="h-12 w-12 text-green-400" />
-                    </div>
-                  </div>
-                  <p className="text-slate-400">No completed transactions yet.</p>
+                  <p className="text-slate-400">No pending tasks found.</p>
                 </CardContent>
               </Card>
             )}

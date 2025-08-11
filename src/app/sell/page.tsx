@@ -43,6 +43,21 @@ export default function SellPage() {
     setFormData((prev) => ({ ...prev, pickupLocation: e.target.value }))
   }
 
+  // Parse OCR text into structured items
+  const parseItems = (text: string) => {
+    return text
+      .split("\n")
+      .map(line => line.trim())
+      .filter(line => line.length > 0)
+      .map(line => {
+        const match = line.match(/(.*?)(\d+)\s*$/)
+        return {
+          product: match ? match[1].trim() : line,
+          quantity: match ? parseInt(match[2], 10) : 1
+        }
+      })
+  }
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     if (!user || !formData.file) return
@@ -62,12 +77,16 @@ export default function SellPage() {
         data: { text: extractedText },
       } = await Tesseract.recognize(formData.file, "eng")
 
+      // Parse into structured product list
+      const parsedItems = parseItems(extractedText)
+
       // Save to Firestore
       await addDoc(collection(db, "sellSubmissions"), {
         userId: user.uid,
         pickupLocation: formData.pickupLocation,
         imageUrl,
         extractedText,
+        parsedItems, // store structured data
         createdAt: serverTimestamp(),
       })
 

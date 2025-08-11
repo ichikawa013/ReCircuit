@@ -8,7 +8,6 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Separator } from "@/components/ui/separator"
 import Navbar from "@/components/Navbar"
@@ -16,19 +15,18 @@ import Sidebar from "@/components/sidebar"
 import { getDbClient, app } from "@/helpers/firebase/firebase"
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage"
 import { collection, addDoc, serverTimestamp } from "firebase/firestore"
+import Tesseract from "tesseract.js"
 
-interface DonationFormData {
+interface DonateFormData {
   file: File | null
   pickupLocation: string
-  notes: string
 }
 
 export default function DonatePage() {
   const { user, loading } = useAuth()
-  const [formData, setFormData] = useState<DonationFormData>({
+  const [formData, setFormData] = useState<DonateFormData>({
     file: null,
     pickupLocation: "",
-    notes: "",
   })
   const [submitted, setSubmitted] = useState<boolean>(false)
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false)
@@ -41,10 +39,24 @@ export default function DonatePage() {
     setFormData((prev) => ({ ...prev, file: selectedFile }))
   }
 
-  const handleInputChange =
-    (field: keyof Omit<DonationFormData, "file">) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-      setFormData((prev) => ({ ...prev, [field]: e.target.value }))
-    }
+  const handleLocationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData((prev) => ({ ...prev, pickupLocation: e.target.value }))
+  }
+
+  // Parse OCR text into structured items (product + quantity)
+  const parseItems = (text: string) => {
+    return text
+      .split("\n")
+      .map(line => line.trim())
+      .filter(line => line.length > 0)
+      .map(line => {
+        const match = line.match(/(.*?)(\d+)\s*$/)
+        return {
+          product: match ? match[1].trim() : line,
+          quantity: match ? parseInt(match[2], 10) : 1,
+        }
+      })
+  }
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -55,28 +67,30 @@ export default function DonatePage() {
       const storage = getStorage(app)
       const db = getDbClient()
 
+      // Upload file to Firebase Storage
       const fileRef = ref(storage, `donations/${user.uid}/${Date.now()}-${formData.file.name}`)
       await uploadBytes(fileRef, formData.file)
       const imageUrl = await getDownloadURL(fileRef)
 
-      // ✅ Dynamically import Tesseract only when needed on client
-      const Tesseract = await import("tesseract.js")
-      const {
-        data: { text: extractedText },
-      } = await Tesseract.recognize(formData.file, "eng")
+      // OCR extract text from image
+      const { data: { text: extractedText } } = await Tesseract.recognize(formData.file, "eng")
 
+      // Parse extracted text into structured product list
+      const parsedItems = parseItems(extractedText)
+
+      // Save submission to Firestore
       await addDoc(collection(db, "donateSubmissions"), {
         userId: user.uid,
         pickupLocation: formData.pickupLocation,
-        notes: formData.notes,
         imageUrl,
         extractedText,
+        parsedItems,
         createdAt: serverTimestamp(),
       })
 
       setSubmitted(true)
     } catch (err) {
-      console.error("Error processing donation:", err)
+      console.error("Error processing donation submission:", err)
     }
     setUploading(false)
   }
@@ -86,25 +100,24 @@ export default function DonatePage() {
     setFormData({
       file: null,
       pickupLocation: "",
-      notes: "",
     })
   }
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center text-white relative overflow-hidden">
-        {/* Unified Background */}
+        {/* Background */}
         <div className="fixed inset-0 z-0">
           <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-950" />
-          <div className="absolute top-0 left-1/4 w-96 h-96 bg-green-500/10 rounded-full blur-3xl animate-pulse" />
-          <div className="absolute top-1/3 right-1/4 w-80 h-80 bg-emerald-500/8 rounded-full blur-3xl animate-pulse delay-1000" />
-          <div className="absolute bottom-1/4 left-1/3 w-72 h-72 bg-teal-500/6 rounded-full blur-3xl animate-pulse delay-2000" />
-          <div className="absolute inset-0 bg-[linear-gradient(rgba(34,197,94,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(34,197,94,0.03)_1px,transparent_1px)] bg-[size:50px_50px]" />
+          <div className="absolute top-0 left-1/4 w-96 h-96 bg-pink-500/10 rounded-full blur-3xl animate-pulse" />
+          <div className="absolute top-1/3 right-1/4 w-80 h-80 bg-pink-600/8 rounded-full blur-3xl animate-pulse delay-1000" />
+          <div className="absolute bottom-1/4 left-1/3 w-72 h-72 bg-pink-400/6 rounded-full blur-3xl animate-pulse delay-2000" />
+          <div className="absolute inset-0 bg-[linear-gradient(rgba(219,39,119,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(219,39,119,0.03)_1px,transparent_1px)] bg-[size:50px_50px]" />
         </div>
 
         <div className="relative z-10 text-center space-y-4">
           <div className="w-16 h-16 border-4 border-pink-400/30 border-t-pink-400 rounded-full animate-spin mx-auto"></div>
-          <p className="text-slate-300 text-lg">Loading...</p>
+          <p className="text-pink-300 text-lg">Loading...</p>
         </div>
       </div>
     )
@@ -113,18 +126,18 @@ export default function DonatePage() {
   if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center text-white relative overflow-hidden">
-        {/* Unified Background */}
+        {/* Background */}
         <div className="fixed inset-0 z-0">
           <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-950" />
-          <div className="absolute top-0 left-1/4 w-96 h-96 bg-green-500/10 rounded-full blur-3xl animate-pulse" />
-          <div className="absolute top-1/3 right-1/4 w-80 h-80 bg-emerald-500/8 rounded-full blur-3xl animate-pulse delay-1000" />
-          <div className="absolute bottom-1/4 left-1/3 w-72 h-72 bg-teal-500/6 rounded-full blur-3xl animate-pulse delay-2000" />
-          <div className="absolute inset-0 bg-[linear-gradient(rgba(34,197,94,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(34,197,94,0.03)_1px,transparent_1px)] bg-[size:50px_50px]" />
+          <div className="absolute top-0 left-1/4 w-96 h-96 bg-pink-500/10 rounded-full blur-3xl animate-pulse" />
+          <div className="absolute top-1/3 right-1/4 w-80 h-80 bg-pink-600/8 rounded-full blur-3xl animate-pulse delay-1000" />
+          <div className="absolute bottom-1/4 left-1/3 w-72 h-72 bg-pink-400/6 rounded-full blur-3xl animate-pulse delay-2000" />
+          <div className="absolute inset-0 bg-[linear-gradient(rgba(219,39,119,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(219,39,119,0.03)_1px,transparent_1px)] bg-[size:50px_50px]" />
         </div>
 
         <div className="relative z-10 p-6">
           <Alert className="max-w-md bg-slate-800/30 backdrop-blur-md border-slate-700/50">
-            <AlertDescription className="text-slate-300">Please sign in to donate items.</AlertDescription>
+            <AlertDescription className="text-pink-300">Please sign in to donate items.</AlertDescription>
           </Alert>
         </div>
       </div>
@@ -134,18 +147,18 @@ export default function DonatePage() {
   if (user.role === "ngo") {
     return (
       <div className="min-h-screen flex items-center justify-center text-white relative overflow-hidden">
-        {/* Unified Background */}
+        {/* Background */}
         <div className="fixed inset-0 z-0">
           <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-950" />
-          <div className="absolute top-0 left-1/4 w-96 h-96 bg-green-500/10 rounded-full blur-3xl animate-pulse" />
-          <div className="absolute top-1/3 right-1/4 w-80 h-80 bg-emerald-500/8 rounded-full blur-3xl animate-pulse delay-1000" />
-          <div className="absolute bottom-1/4 left-1/3 w-72 h-72 bg-teal-500/6 rounded-full blur-3xl animate-pulse delay-2000" />
-          <div className="absolute inset-0 bg-[linear-gradient(rgba(34,197,94,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(34,197,94,0.03)_1px,transparent_1px)] bg-[size:50px_50px]" />
+          <div className="absolute top-0 left-1/4 w-96 h-96 bg-pink-500/10 rounded-full blur-3xl animate-pulse" />
+          <div className="absolute top-1/3 right-1/4 w-80 h-80 bg-pink-600/8 rounded-full blur-3xl animate-pulse delay-1000" />
+          <div className="absolute bottom-1/4 left-1/3 w-72 h-72 bg-pink-400/6 rounded-full blur-3xl animate-pulse delay-2000" />
+          <div className="absolute inset-0 bg-[linear-gradient(rgba(219,39,119,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(219,39,119,0.03)_1px,transparent_1px)] bg-[size:50px_50px]" />
         </div>
 
         <div className="relative z-10 p-6">
           <Alert className="max-w-md bg-slate-800/30 backdrop-blur-md border-slate-700/50">
-            <AlertDescription className="text-slate-300">
+            <AlertDescription className="text-pink-300">
               NGOs cannot donate items through this platform.
             </AlertDescription>
           </Alert>
@@ -156,20 +169,20 @@ export default function DonatePage() {
 
   return (
     <div className="min-h-screen text-white relative overflow-hidden">
-      {/* Unified Background */}
+      {/* Background */}
       <div className="fixed inset-0 z-0">
         <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-950" />
-        <div className="absolute top-0 left-1/4 w-96 h-96 bg-green-500/10 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute top-1/3 right-1/4 w-80 h-80 bg-emerald-500/8 rounded-full blur-3xl animate-pulse delay-1000" />
-        <div className="absolute bottom-1/4 left-1/3 w-72 h-72 bg-teal-500/6 rounded-full blur-3xl animate-pulse delay-2000" />
-        <div className="absolute inset-0 bg-[linear-gradient(rgba(34,197,94,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(34,197,94,0.03)_1px,transparent_1px)] bg-[size:50px_50px]" />
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-pink-500/10 rounded-full blur-3xl animate-pulse" />
+        <div className="absolute top-1/3 right-1/4 w-80 h-80 bg-pink-600/8 rounded-full blur-3xl animate-pulse delay-1000" />
+        <div className="absolute bottom-1/4 left-1/3 w-72 h-72 bg-pink-400/6 rounded-full blur-3xl animate-pulse delay-2000" />
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(219,39,119,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(219,39,119,0.03)_1px,transparent_1px)] bg-[size:50px_50px]" />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(255,255,255,0.01),transparent_70%)]" />
       </div>
 
       {/* Floating Elements */}
       <div className="absolute top-20 left-20 w-20 h-20 bg-pink-400/10 rounded-full blur-xl animate-pulse" />
-      <div className="absolute bottom-20 right-20 w-16 h-16 bg-green-400/10 rounded-full blur-xl animate-pulse delay-1000" />
-      <div className="absolute top-1/2 right-10 w-12 h-12 bg-emerald-400/10 rounded-full blur-xl animate-pulse delay-2000" />
+      <div className="absolute bottom-20 right-20 w-16 h-16 bg-pink-600/10 rounded-full blur-xl animate-pulse delay-1000" />
+      <div className="absolute top-1/2 right-10 w-12 h-12 bg-pink-500/10 rounded-full blur-xl animate-pulse delay-2000" />
 
       <div className="relative z-10">
         <Navbar toggleSidebar={toggleSidebar} isSidebarOpen={isSidebarOpen} />
@@ -185,14 +198,14 @@ export default function DonatePage() {
 
         <main className="pt-16 p-6 flex justify-center max-w-7xl mx-auto">
           {submitted ? (
-            <Card className="max-w-md w-full bg-slate-800/30 backdrop-blur-md border border-slate-700/50 shadow-2xl hover:shadow-green-500/10 transition-all duration-500 transform hover:scale-[1.02]">
+            <Card className="max-w-lg w-full bg-slate-800/30 backdrop-blur-md border border-slate-700/50 shadow-2xl hover:shadow-pink-500/10 transition-all duration-500 transform hover:scale-[1.02] animate-fade-in-up">
               <CardHeader className="text-center">
                 <div className="flex justify-center mb-4">
                   <div className="relative">
-                    <div className="flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-br from-green-500/20 to-green-600/20 backdrop-blur-sm animate-pulse">
-                      <CheckCircle className="h-8 w-8 text-green-400" />
+                    <div className="flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-br from-pink-500/20 to-pink-600/20 backdrop-blur-sm animate-pulse">
+                      <CheckCircle className="h-8 w-8 text-pink-400" />
                     </div>
-                    <div className="absolute inset-0 bg-green-400/20 rounded-full blur-xl animate-pulse" />
+                    <div className="absolute inset-0 bg-pink-400/20 rounded-full blur-xl animate-pulse" />
                   </div>
                 </div>
                 <CardTitle className="flex items-center justify-center gap-2 text-xl bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent">
@@ -219,7 +232,7 @@ export default function DonatePage() {
               </CardContent>
             </Card>
           ) : (
-            <Card className="max-w-lg w-full bg-slate-800/30 backdrop-blur-md border border-slate-700/50 shadow-2xl hover:shadow-pink-500/10 transition-all duration-500 transform hover:scale-[1.02]">
+            <Card className="max-w-2xl w-full bg-slate-800/30 backdrop-blur-md border border-slate-700/50 shadow-2xl hover:shadow-pink-500/10 transition-all duration-500 transform hover:scale-[1.02] animate-fade-in-up">
               <CardHeader>
                 <div className="flex items-center justify-center mb-4">
                   <div className="relative">
@@ -239,7 +252,7 @@ export default function DonatePage() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <form onSubmit={handleSubmit} className="space-y-4">
+                <form onSubmit={handleSubmit} className="space-y-6">
                   <div className="space-y-2">
                     <Label htmlFor="file-upload" className="text-slate-300 font-medium">
                       Product List / Image *
@@ -286,25 +299,11 @@ export default function DonatePage() {
                         id="pickup-location"
                         placeholder="Enter your pickup address"
                         value={formData.pickupLocation}
-                        onChange={handleInputChange("pickupLocation")}
+                        onChange={handleLocationChange}
                         className="pl-10 bg-slate-700/50 border-slate-600/50 text-white placeholder:text-slate-400 focus:border-pink-400/50 focus:ring-pink-400/20 backdrop-blur-sm transition-all duration-300 hover:bg-slate-700/70"
                         required
                       />
                     </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="notes" className="text-slate-300 font-medium">
-                      Additional Notes (Optional)
-                    </Label>
-                    <Textarea
-                      id="notes"
-                      placeholder="Any special instructions or details about your donation..."
-                      value={formData.notes}
-                      onChange={handleInputChange("notes")}
-                      rows={3}
-                      className="bg-slate-700/50 border-slate-600/50 text-white placeholder:text-slate-400 focus:border-pink-400/50 focus:ring-pink-400/20 backdrop-blur-sm transition-all duration-300 hover:bg-slate-700/70 resize-none"
-                    />
                   </div>
 
                   <Button
