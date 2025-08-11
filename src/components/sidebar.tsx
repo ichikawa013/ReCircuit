@@ -19,7 +19,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
   const baseLinks = [
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { href: "/my-listings", label: "My Listings", icon: List },
-    { href: "/transaction", label: "Tasks", icon: Receipt },
+    { href: "/tasks", label: "Tasks", icon: Receipt },
   ]
 
   const roleLinks = baseLinks
